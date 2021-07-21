@@ -20,6 +20,10 @@ import { ServerError } from './errors/ServerError';
 import { Client, ClientState, ISendOptions } from './Transport';
 import { RoomListingData } from './matchmaker/driver';
 
+// Monitor timing of broadcastPatch interval
+import { performance } from "perf_hooks";
+let lastHrTime = process.hrtime.bigint();
+
 const DEFAULT_PATCH_RATE = 1000 / 20; // 20fps (50ms)
 const DEFAULT_SIMULATION_INTERVAL = 1000 / 60; // 60fps (16.66ms)
 const noneSerializer = new NoneSerializer();
@@ -267,6 +271,15 @@ export abstract class Room<State= any, Metadata= any> {
   }
 
   public broadcastPatch() {
+    // Create a PerformanceMark entry each time state is patched
+    const patchHrTime = process.hrtime.bigint();
+    performance.mark("broadcastPatch", {
+      detail: {
+        delta: patchHrTime - lastHrTime
+      }
+    });
+    lastHrTime = patchHrTime;
+
     if (!this._simulationInterval) {
       this.clock.tick();
     }
